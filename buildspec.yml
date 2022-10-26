@@ -1,0 +1,44 @@
+---
+version: 0.2
+phases:
+  install:
+    commands:
+      - echo Logging in to Amazon ECR...
+      - echo Installing Necessary CLI Tools
+      - curl -sS -o kubectl https://storage.googleapis.com/kubernetes-release/release/v1.18.8/bin/linux/amd64/kubectl
+      - chmod +x ./kubectl
+      - echo Install helm
+      - curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/master/scripts/get-helm-3
+      - chmod 700 get_helm.sh
+      - ./get_helm.sh
+      - export PATH=$PWD/:$PATH
+  pre_build:
+    commands:
+      ## - TAG="$REPOSITORY_NAME.$ENVIRONMENT_NAME.$(date +%Y-%m-%d.%H.%M.%S).$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | head -c 8)"
+      ## - sed -i 's@CONTAINER_IMAGE@'"$REPOSITORY_URI:$TAG"'@' eks-deployment.yml
+      ## - sed -i 's@APPNAME@'"$APPNAME"'@' eks-deployment.yml
+      ## - $(aws ecr get-login --no-include-email)
+      - export KUBECONFIG=$HOME/.kube/config
+  build:
+    commands:
+      ## Enable the below line if you want to create your DB and other secure parameters to the .env/config files. make sure to grant access to the SSM parameter store.
+      ## - aws ssm get-parameter --with-decryption --name $WHATEVERTHEPARAMETERNAMR --region $REGION | jq '.Parameter.Value' > .env
+      ## - docker build --tag $REPOSITORY_URI:$TAG .
+      ## Clone helm repo using bitbucket app password
+      - git clone https://nxl_kmanimarpan:Qp9YN9mJpUyNhjKN7AJS@bitbucket.org/nxtlbs-devops/cc-cloudaz-helm-chart.git
+
+  post_build:
+    commands:
+      - aws eks get-token --cluster-name $EKS_CLUSTER_NAME --region $AWS_REGION
+      - aws eks update-kubeconfig --name $EKS_CLUSTER_NAME --region $AWS_REGION
+      - cat /root/.kube/config
+      - kubectl get nodes > build.json
+      - cat build.json
+      ## - helm upgrade
+      - echo Running robo framework test
+      ## - test will publish output to S3 bucket (as artifact)
+      - echo Check for Failed test results
+      - echo Starting Deployment
+      - echo Notify deployment status to teams
+artifacts:
+  files: build.json
